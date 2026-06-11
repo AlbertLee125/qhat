@@ -108,6 +108,29 @@ hamiltonian.load_second_quantization("file.npz",
 hamiltonian.load_second_quantization("data.h5")
 ```
 
+### Checking Jordan-Wigner / Bravyi-Kitaev Isospectrality
+
+The `qhat.analysis.mapping_isomorphism` module can be used to verify that the Jordan-Wigner and
+Bravyi-Kitaev encodings of the same fermionic Hamiltonian have the same eigenvalues.  The check
+maps the input Hamiltonian with both encodings, builds dense matrices in the same qubit code space,
+and compares the sorted spectra.
+
+```python
+from qhat.analysis.hamiltonian import get_physical_hamiltonian
+from qhat.analysis.mapping_isomorphism import find_jw_bk_eigenvalue_match
+
+physical_hamiltonian = get_physical_hamiltonian(state.config_hamiltonian)
+comparison = find_jw_bk_eigenvalue_match(physical_hamiltonian)
+
+print(comparison.is_isospectral)
+print(comparison.max_abs_difference)
+print(comparison.jw_eigenvalues)
+print(comparison.bk_eigenvalues)
+```
+
+This is intended for small Hamiltonians because exact dense diagonalization scales as
+`2 ** num_qubits`.
+
 ### Encoding as a Unitary
 
 Currently all of our applications involve encoding the Hamiltonian ($\hat{H}$) as a time-evolution
