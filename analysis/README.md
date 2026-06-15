@@ -269,27 +269,186 @@ computed by the script by setting
 
 ### Analyzing an Algorithm
 
-There are many details of the algorithm that may be worth analyzing.  At this point, this script is
-focused on resource estimation.
+There are many details of the algorithm that may be worth analyzing. The available analyses include:
 
-- pyLIQTR Resource Estimation: Setting `analysis.resource_estimator` to "pyLIQTR" will use the
+#### Resource Estimation
+
+- **pyLIQTR Resource Estimation**: Setting `analysis.resource_estimator` to "pyLIQTR" will use the
   resource estimation capability from pyLIQTR, which is in turn based on the resource estimation
   capability from Qualtran.
-- Cirq Resource Estimation: Setting `analysis.resource_estimator` to "Cirq"is available but
+- **Cirq Resource Estimation**: Setting `analysis.resource_estimator` to "Cirq" is available but
   deprecated and may not work correctly.
 
+#### Matrix Output
+
+- **Unitary Matrix Output**: Setting `analysis.matrix_output_file` to a filename will compute and
+  save the full unitary matrix representation of the algorithm. Supported formats:
+  - `.npz`: NumPy compressed format
+  - `.h5` or `.hdf5`: HDF5 format with compression
+  - `.txt`, `.dat`, or `.csv`: Human-readable sparse text format
+  
+  The matrix file includes metadata such as git hash, timestamp, unitarity error, and matrix norm.
+  
+  **Example**:
+  ```python
+  analysis.matrix_output_file = "unitary_matrix.npz"
+  ```
+
+- **Exact Hamiltonian Matrix Output**: Setting `analysis.exact_matrix_output_file` to a filename
+  will compute and save the exact matrix representation of the Hamiltonian **without any
+  approximations**.  Supported formats are the same as for unitary matrix output.
+  
+  This is useful for:
+  - Validating approximate algorithms by comparing exact vs approximate eigenvalues
+  - Computing exact ground state energies for small systems
+  - Testing and debugging algorithm implementations
+  
+  **System size considerations**:
+  - **Small systems (≤15 qubits)**: Full dense matrix is computed and saved to file
+  - **Large systems (>15 qubits)**: Matrix-free operator is created but not saved (too large)
+  
+  **Example**:
+  ```python
+  analysis.exact_matrix_output_file = "exact_hamiltonian.npz"
+  ```
+  
+  **Note**: For large systems, the exact matrix computation creates a matrix-free LinearOperator
+  that can be used with scipy sparse eigensolvers, but cannot be directly saved to a file. The
+  analysis will skip file output and note this in the results.
+
+#### Eigendecomposition Analysis
+
+- **Eigendecomposition Analysis**: Setting `analysis.num_eigenvalues` to a positive integer or `"all"` enables eigenvalue/eigenvector computation for exact and/or approximate matrices.
+
+  **Configuration parameters**:
+  
+  - **`num_eigenvalues`**: Controls how many eigenvalues to compute
+    - `0` (default): Eigendecomposition disabled
+    - Positive integer (e.g., `5`): Compute that many eigenvalues using sparse methods (recommended for large systems)
+    - `"all"` (case-insensitive): Compute full eigendecomposition (all eigenvalues and eigenvectors)
+      - **Only feasible for small systems**
+
+  - **`eigendecomposition_matrices`**: Which matrices to eigendecompose
+    - `"approximate"` (default): Only eigendecompose the algorithm's unitary matrix
+    - `"exact"`: Only eigendecompose the exact Hamiltonian matrix
+    - `"both"`: Eigendecompose both matrices (useful for comparison)
+
+  - **`which_eigenvalues`**: Which eigenvalues to compute (ignored for full decomposition)
+    - `"smallest"` (default): Algebraically smallest (most negative, ground state for Hamiltonians)
+    - `"largest"`: Algebraically largest (most positive)
+    - `"both"`: Compute k smallest AND k largest (returns 2k eigenvalues total)
+    - **Important**: "smallest" means most negative (closest to -∞), NOT smallest magnitude
+
+  **Output files**:
+  - `exact_eigendecomposition.npz`: Results for exact matrix (if requested)
+  - `approximate_eigendecomposition.npz`: Results for approximate matrix (if requested)
+  - Each file contains: eigenvalues, eigenvectors, metadata
+
+  **Examples**:
+  ```python
+  # Ground state energy (1 smallest eigenvalue) for large system
+  analysis.num_eigenvalues = 1
+  analysis.which_eigenvalues = "smallest"
+  analysis.eigendecomposition_matrices = "both"  # Compare exact vs approximate
+
+  # Low-lying excited states (5 smallest eigenvalues)
+  analysis.num_eigenvalues = 5
+  analysis.which_eigenvalues = "smallest"
+
+  # High and low energy states
+  analysis.num_eigenvalues = 3
+  analysis.which_eigenvalues = "both"  # Returns 6 eigenvalues (3 smallest + 3 largest)
+
+  # Full spectrum for small system
+  analysis.num_eigenvalues = "all"
+  analysis.eigendecomposition_matrices = "exact"
+  ```
+
+  **Eigenvalue terminology**:
+  - For a Hamiltonian with eigenvalues [-10, -5, 0, 5, 10]:
+    - `"smallest"` gives [-10, -5, ...] (most negative, ground state)
+    - `"largest"` gives [10, 5, ...] (most positive)
+    - This is NOT based on magnitude (which would give [0, 5, -5, ...])
+
+#### Numerical Simulation
+
+- **Numerical Simulation**: Setting `analysis.numerical_simulation_inputs` to one or more state
+  vector files will apply the algorithm to the input state(s) via numerical simulation, producing
+  output state(s).
+  
+  **Input format**: NumPy `.npy` format (compatible with `hamgen.py` output). Input can be:
+  - Single filename (string): `"initial_state.npy"`
+  - Multiple filenames (list): `["state1.npy", "state2.npy", "state3.npy"]`
+  
+  **Output naming**: Automatic suffix `_final` is added to input filename:
+  - `initial_state.npy` → `initial_state_final.npy`
+  
+  **Example**:
+  ```python
+  # Single state simulation
+  analysis.numerical_simulation_inputs = "initial_state.npy"
+  
+  # Multiple states
+  analysis.numerical_simulation_inputs = [
+      "ground_state.npy",
+      "excited_state.npy",
+      "superposition.npy"
+  ]
+  ```
+  
+  **Creating input states**: State vectors must be 1D complex NumPy arrays with dimension 2^n
+  (where n is the number of qubits):
+  ```python
+  import numpy as np
+  
+  # Create 4-qubit state |0000⟩
+  n_qubits = 4
+  psi = np.zeros(2**n_qubits, dtype=complex)
+  psi[0] = 1.0
+  np.save("initial_state.npy", psi)
+  ```
+  
 ## Generated Files
 
-The script will print a log both to the screen and to a logfile.  It also generates a TOML file
-that summarizes the inputs and results.  The TOML file is based on a hash, so the filename will
-likely be a long string of numbers with the `.toml` extension.  The TOML file only shows the final
-results and does not report the intermediate values, so the logfile will typically be more useful.
+The script will print a log both to the screen and to a logfile. It also generates output files
+depending on the analyses requested:
 
-## Example
+- **Log file**: Default `analysis.log`, configurable via `general.logfile`
+- **TOML summary**: Hash-based filename (e.g., `12345678901234567890.toml`) containing inputs and
+  results. Shows final results but not intermediate values.
+- **Matrix file** (if `matrix_output_file` specified): Unitary matrix in specified format (`.npz`,
+  `.h5`, or `.txt`)
+- **Final state files** (if `numerical_simulation_inputs` specified): Evolved quantum states with
+  `_final` suffix (e.g., `initial_state.npy` → `initial_state_final.npy`)
 
-The provided `config.py` file presents an example configuration file that can be used to generate
-resource estimates.  It loads data from the tensors file in the `examples` directory, and uses the
-options specified in the configuration file to generate resource estimates.  The first two lines of
-the provided `config.py` file allow the user to easily switch between a Trotterization-based
-analysis or a double-factorization-based analysis (additionally demonstrating that configuration
-files are themselves Python scripts rather than simple key-value lists).
+The logfile is typically most useful for understanding the analysis process and intermediate values.
+
+## Examples
+
+The `analysis/examples/` directory contains configuration files demonstrating various analysis capabilities:
+
+### Basic Example: `config.py`
+
+The basic `config.py` file presents a simple configuration for generating resource estimates. It loads data from the tensors file in the `examples` directory and demonstrates switching between Trotterization-based and double-factorization-based analysis (showing that configuration files are Python scripts, not just key-value lists).
+
+### Comprehensive Example: `config_full_analysis.py`
+
+The `config_full_analysis.py` file demonstrates **ALL currently available analysis capabilities**:
+
+1. **Resource Estimation**: Quantum gate counts, qubit requirements, circuit depth
+2. **Matrix Output**: Save the unitary matrix representation to various formats (.npz, .h5, .txt)
+3. **Numerical Simulation**: Apply the unitary to one or more input quantum states
+
+This comprehensive example serves as a complete reference showing how to:
+- Configure all available analyses in one file
+- Use different output formats
+- Process multiple input states
+- Structure configuration files with clear documentation
+- Set up for future features (exact matrices, eigendecomposition, error analysis)
+
+To run either example:
+```bash
+python3.11 -m qhat.analysis.driver examples/config.py
+# or
+python3.11 -m qhat.analysis.driver examples/config_full_analysis.py
+```

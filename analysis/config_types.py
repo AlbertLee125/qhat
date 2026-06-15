@@ -160,11 +160,23 @@ class AnalysisConfiguration(ConfigurationBase):
     def __init__(self):
         self.resource_estimator = None
         self.matrix_output_file = None
+        self.numerical_simulation_inputs = None
+        self.exact_matrix_output_file = None
+        self.matrix_memory_threshold_gb = 16.0
+        self.num_eigenvalues = 0
+        self.eigendecomposition_matrices = 'approximate'
+        self.which_eigenvalues = 'smallest'
 
     def _generate_TOML_table(self):
         table = tomlkit.table()
         self.save_if_present(table, "resource_estimator")
         self.save_if_present(table, "matrix_output_file")
+        self.save_if_present(table, "numerical_simulation_inputs")
+        self.save_if_present(table, "exact_matrix_output_file")
+        self.save_if_present(table, "matrix_memory_threshold_gb")
+        self.save_if_present(table, "num_eigenvalues")
+        self.save_if_present(table, "eigendecomposition_matrices")
+        self.save_if_present(table, "which_eigenvalues")
         return table
 
 # -------------------------------------------------------------------------------------------------
@@ -190,8 +202,6 @@ class GeneralConfiguration:
         self.logfile = user_config.logfile
         self.loglevel = user_config._loglevel
         self.git_hash = _get_git_hash()
-        # Note: Logging is now configured by the application entry point (driver.py)
-        # using qhat.logging_utils.configure_logging()
 
     def _generate_TOML_table(self):
         table = tomlkit.table()
