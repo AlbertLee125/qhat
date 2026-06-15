@@ -131,6 +131,69 @@ print(comparison.bk_eigenvalues)
 This is intended for small Hamiltonians because exact dense diagonalization scales as
 `2 ** num_qubits`.
 
+### Comparing Jordan-Wigner / Bravyi-Kitaev Trotterization
+
+The `qhat.analysis.compare_mappings` module compares JW and BK in two stages:
+
+- Exact spectrum comparison, to confirm that the two encodings are isospectral.
+- Pauli-structure and Trotter-coefficient comparison, to help explain why the mapped
+  Hamiltonians can have different Trotter error even when their spectra match.
+
+For a complete comparison, use a second-quantized tensor Hamiltonian so QHAT can generate both
+mappings from the same fermionic operator:
+
+```bash
+cd /path/to/parent/of/qhat
+python -m qhat.analysis.compare_mappings second-quantized \
+  qhat/analysis/examples/Be-H_1.30_sto-6g_as-003-003.tensors.npz \
+  --mode exact \
+  --ordering-method lexicographical \
+  --energy-error 1e-3
+```
+
+If you already have mapped Pauli files, provide both the JW and BK files:
+
+```bash
+python -m qhat.analysis.compare_mappings pauli-pair molecule_jw.dat molecule_bk.dat
+```
+
+The checked-in H2 HamLib file and Li-Li files are already mapped Pauli Hamiltonians, so a single
+file can only be inspected unless the corresponding file for the other mapping is also supplied:
+
+```bash
+python -m qhat.analysis.compare_mappings inspect-pauli \
+  qhat/julia_trotter/Li-Li_jw/Li-Li_2.90_hgbs-5_as-002-002_jw.dat \
+  --label "Li-Li JW"
+```
+
+The built-in demo compares Be-H fully and inspects the checked-in H2/Li-Li Pauli files:
+
+```bash
+python -m qhat.analysis.compare_mappings demo --mode exact
+```
+
+Use `--ordering-method magnitude`, `--ordering-method lexicographical`, or
+`--ordering-method random --random-seed 17` to compare both mappings under a shared ordering rule.
+Omitting the flag uses each mapped Hamiltonian's input/native order.  Add `--actual-errors` for
+small systems to compute dense errors at the requested `--step-counts`: spectral operator norm,
+Frobenius norm, and optionally state-vector infidelity.
+
+For state-vector diagnostics, use `--initial-state plus`, `--initial-state random`, or
+`--occupied-orbitals 0,1,2` with second-quantized inputs.  Occupied-orbital states are converted
+to the appropriate JW or BK computational-basis bit string.  This is the physically meaningful
+option for Hartree-Fock-style occupation states.  Generic code-space states are useful diagnostic
+states, but they are not automatically the same physical fermionic state under different mappings.
+
+The module also includes a tiny in-memory fermionic smoke test:
+
+```bash
+python -m qhat.analysis.compare_mappings synthetic-two-mode \
+  --mode exact \
+  --actual-errors \
+  --initial-state plus \
+  --step-counts 1,2,4,8
+```
+
 ### Encoding as a Unitary
 
 Currently all of our applications involve encoding the Hamiltonian ($\hat{H}$) as a time-evolution

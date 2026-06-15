@@ -11,6 +11,9 @@ def reorder_paulis(pauli_strings, ordering_method):
     #   meaning that if it referenced again later, it will produce an empty list
     pauli_string_list = list(pauli_strings.items())
 
+    if len(pauli_string_list) == 0:
+        return dict()
+
     #TODO: not a very thorough validation and it's a bit ugly
     if not isinstance(pauli_string_list[0][0], str):
         raise Exception("This method currently only accepts pauli strings written in 'string' format (e.g. XIIYZIX)")
@@ -63,12 +66,13 @@ def group_evolve_xyz(terms):
 
         if len(pauli_types) == 0:
             Xs.append(term)
+            continue
         else:
             pauli_type = list(pauli_types)[0] #extract the one pauli type
         
         if pauli_type == "X":
             Xs.append(term)
-        elif pauli_types == "Y":
+        elif pauli_type == "Y":
             Ys.append(term)
         elif pauli_type == "Z":
             Zs.append(term)
@@ -76,4 +80,3 @@ def group_evolve_xyz(terms):
             raise Exception(f"Unsupported Pauli type: {pauli_type}. The only allowable Pauli types are I, X, Y, Z.")
         
     return dict(Xs + Ys + Zs)
-

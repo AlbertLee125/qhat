@@ -3,7 +3,6 @@
 This is a manual map of the repository source layout. It focuses on code, tests,
 configuration, examples, and checked-in data. Generated or local-only artifacts
 such as caches, logs, package metadata, and run-summary TOML files are omitted.
-Newly added analysis comparison files are also omitted from this tree by request.
 
 ## Root
 
@@ -56,6 +55,7 @@ analysis/
 |-- analysis.py                       # Resource estimation and matrix-output dispatch
 |-- file_io.py                        # Saves unitary matrices in NumPy, HDF5, or text form
 |-- ordering.py                       # Pauli-term ordering helpers
+|-- compare_mappings.py               # JW/BK spectrum and Trotter-coefficient comparison CLI
 |-- trotter_coefficients.py           # Reference Trotter error coefficient estimator
 |-- trotter_coefficients_fast.py      # Optimized exact/Monte Carlo Trotter estimator
 |-- calibrate_throughput.py           # Calibrates exact-estimator throughput settings
@@ -69,6 +69,7 @@ analysis/
     |-- test_exact_computation.py     # Exact Trotter coefficient tests
     |-- test_exact_performance.py     # Exact-estimator performance tests
     |-- test_hamlib_loader.py         # HamLib HDF5 loader tests
+    |-- test_compare_mappings.py      # JW/BK spectrum and Trotter comparison tests
     |-- test_modes.py                 # Trotter-estimator mode-selection tests
     |-- test_pauli_hamiltonian.py     # Pauli Hamiltonian loader and wrapper tests
     |-- test_throughput_config.py     # Throughput configuration tests
@@ -87,6 +88,7 @@ analysis/hamiltonian.py               # HDF5, NumPy, HamLib, JSON, txt/dat Hamil
 analysis/unitary.py                   # Ramped Trotter and double-factorization encodings
 analysis/algorithm.py                 # QPE, time evolution, controlled time evolution
 analysis/analysis.py                  # Resource estimation through pyLIQTR or Cirq
+analysis/compare_mappings.py          # Compare JW/BK spectra, Pauli structure, Trotter errors
 ```
 
 ## common/
