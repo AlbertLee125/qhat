@@ -2,7 +2,9 @@
 """
 Compare Trotter errors between Jordan-Wigner and Bravyi-Kitaev mappings.
 
-Although JW and BK have identical eigenspectra, they produce different
+Uses the Be-H molecule example from analysis/examples/.
+
+Although JW and BK have identical eigenspectra (isomorphic), they produce different
 Pauli decompositions → different Trotter error coefficients.
 
 Usage:
@@ -18,32 +20,32 @@ sys.path.insert(0, 'analysis')
 from trotter_coefficients_fast import trotter_error_estimator_fast
 
 
-def create_hubbard_hamiltonian(n_sites=3, t=1.0, U=4.0):
+def load_beh_hamiltonian(filename):
     """
-    Create an n-site Hubbard model Hamiltonian.
+    Load Be-H molecule Hamiltonian from NumPy .npz file.
     
-    H = -t Σ_{<i,j>,σ} (c†_{iσ} c_{jσ} + h.c.) + U Σ_i n_{i↑} n_{i↓}
+    File format (from hamiltonian_generator):
+        - constant: scalar constant term (optional)
+        - one_body: one-body tensor
+        - two_body: two-body tensor
+    
+    Returns:
+        InteractionOperator
     """
-    n_qubits = 2 * n_sites
+    print(f'Loading Hamiltonian from "{filename}"...')
+    data = np.load(filename)
     
-    # One-body: nearest-neighbor hopping
-    one_body = np.zeros((n_qubits, n_qubits))
-    for i in range(n_sites - 1):
-        # Spin up
-        one_body[2*i, 2*(i+1)] = -t
-        one_body[2*(i+1), 2*i] = -t
-        # Spin down
-        one_body[2*i+1, 2*(i+1)+1] = -t
-        one_body[2*(i+1)+1, 2*i+1] = -t
+    # Extract tensors
+    constant = data.get("constant", np.array(0.0))[()]  # Extract scalar from 0D array
+    one_body = data["one_body"]
+    two_body = data["two_body"]
     
-    # Two-body: on-site repulsion
-    two_body = np.zeros((n_qubits, n_qubits, n_qubits, n_qubits))
-    for site in range(n_sites):
-        up = 2 * site
-        down = 2 * site + 1
-        two_body[up, down, down, up] = U
+    print(f"  Constant term  : {constant}")
+    print(f"  One-body shape : {one_body.shape}")
+    print(f"  Two-body shape : {two_body.shape}")
+    print(f"  Number of spin orbitals : {one_body.shape[0]}")
     
-    return InteractionOperator(0.0, one_body, two_body)
+    return InteractionOperator(constant, one_body, two_body)
 
 
 def qubit_operator_to_terms_list(qubit_operator):
@@ -61,20 +63,33 @@ def main():
     print("=" * 70)
     print()
     
-    # Parameters
-    n_sites = 3
-    t = 1.0
-    U = 4.0
-    time_limit = 30
+    # Load Be-H molecule
+    filename = "analysis/examples/Be-H_1.30_sto-6g_as-003-003.tensors.npz"
     
-    print(f"System: {n_sites}-site Hubbard model")
-    print(f"  Parameters: t={t}, U={U}")
-    print(f"  Qubits: {2*n_sites} (linear chain)")
+    try:
+        fermion_ham = load_beh_hamiltonian(filename)
+    except FileNotFoundError:
+        print(f'ERROR: Could not find "{filename}"')
+        print("Make sure you're running from the qhat root directory.")
+        print()
+        print("Expected file structure:")
+        print("  qhat/")
+        print("  ├── compare_trotter_error_jw_bk.py  ← This script")
+        print("  └── analysis/")
+        print("      └── examples/")
+        print("          └── Be-H_1.30_sto-6g_as-003-003.tensors.npz")
+        return
+    
+    n_qubits = fermion_ham.n_qubits
+    
     print()
-    
-    # Create Hamiltonian
-    print("Creating fermionic Hamiltonian...")
-    fermion_ham = create_hubbard_hamiltonian(n_sites, t, U)
+    print(f"System: Be-H molecule (Beryllium Hydride)")
+    print(f"  Basis set: STO-6G")
+    print(f"  Bond length: 1.30 Angstrom")
+    print(f"  Active space: 3 occupied + 3 vacant spin orbitals")
+    print(f"  Number of qubits: {n_qubits}")
+    print(f"  Hilbert space dimension: {2**n_qubits}")
+    print()
     
     # Map to qubits
     print("Applying Jordan-Wigner transformation...")
@@ -89,26 +104,30 @@ def main():
     print()
     
     # Compute Trotter error coefficients
+    time_limit = 60  # 60 seconds for each computation
+    
     print("Computing Trotter error coefficients...")
-    print(f"  Time limit: {time_limit}s per coefficient")
-    print(f"  Using exact computation")
+    print(f"  Time limit: {time_limit}s per mapping")
+    print(f"  Using fast exact/Monte Carlo hybrid computation")
     print()
     
     print("Jordan-Wigner mapping:")
-    print("-" * 40)
+    print("-" * 70)
     jw_c1, jw_c2 = trotter_error_estimator_fast(
         jw_terms, 
         time_limit,
-        mode='exact'
+        mode='monte_carlo',
+        auto_exact=True  # Auto-switch to exact if feasible
     )
     print()
     
     print("Bravyi-Kitaev mapping:")
-    print("-" * 40)
+    print("-" * 70)
     bk_c1, bk_c2 = trotter_error_estimator_fast(
         bk_terms,
         time_limit,
-        mode='exact'
+        mode='monte_carlo',
+        auto_exact=True  # Auto-switch to exact if feasible
     )
     print()
     
@@ -128,26 +147,44 @@ def main():
     print("INTERPRETATION:")
     print()
     
-    if abs(bk_c1/jw_c1 - 1.0) < 0.01 and abs(bk_c2/jw_c2 - 1.0) < 0.01:
-        print("  ≈ Trotter errors are very similar (~1% difference)")
+    ratio_c1 = bk_c1 / jw_c1
+    ratio_c2 = bk_c2 / jw_c2
+    
+    # Check if coefficients are similar (within 10%)
+    if abs(ratio_c1 - 1.0) < 0.1 and abs(ratio_c2 - 1.0) < 0.1:
+        print("  ≈ Trotter errors are very similar (~10% difference)")
+        print("    Both mappings will require approximately the same number of Trotter steps")
     elif bk_c1 < jw_c1 and bk_c2 < jw_c2:
         pct_1st = (1 - bk_c1/jw_c1) * 100
         pct_2nd = (1 - bk_c2/jw_c2) * 100
         print("  ✅ Bravyi-Kitaev has LOWER Trotter errors!")
-        print(f"     → {pct_1st:.1f}% reduction in 1st-order error")
-        print(f"     → {pct_2nd:.1f}% reduction in 2nd-order error")
+        print(f"     → {pct_1st:.1f}% reduction in 1st-order error coefficient")
+        print(f"     → {pct_2nd:.1f}% reduction in 2nd-order error coefficient")
+        print()
+        print("  PRACTICAL IMPACT:")
+        print("    - BK will need fewer Trotter steps for the same accuracy")
+        print("    - BK may be more efficient for time evolution algorithms")
     else:
         pct_1st = (1 - jw_c1/bk_c1) * 100
         pct_2nd = (1 - jw_c2/bk_c2) * 100
         print("  ✅ Jordan-Wigner has LOWER Trotter errors!")
-        print(f"     → {pct_1st:.1f}% reduction in 1st-order error")
-        print(f"     → {pct_2nd:.1f}% reduction in 2nd-order error")
+        print(f"     → {pct_1st:.1f}% reduction in 1st-order error coefficient")
+        print(f"     → {pct_2nd:.1f}% reduction in 2nd-order error coefficient")
+        print()
+        print("  PRACTICAL IMPACT:")
+        print("    - JW will need fewer Trotter steps for the same accuracy")
+        print("    - JW may be more efficient for time evolution algorithms")
     
     print()
     print("KEY INSIGHT:")
-    print("  While JW and BK have identical eigenvalues (isomorphic),")
-    print("  they produce different Pauli decompositions with different")
-    print("  commutator structures → different Trotter error bounds.")
+    print("  While JW and BK are mathematically equivalent (same eigenvalues),")
+    print("  they produce different Pauli decompositions with different commutator")
+    print("  structures → different Trotter error bounds → different practical efficiency.")
+    print()
+    print("NOTE:")
+    print("  These error coefficients determine the number of Trotter steps needed:")
+    print("    1st order: r ≥ t²C₁/(2ε)  where ε is target error")
+    print("    2nd order: r ≥ (t³C₂/ε)^(1/2)")
     print()
     print("=" * 70)
 
