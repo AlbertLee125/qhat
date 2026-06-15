@@ -2,6 +2,8 @@
 """
 Compare eigenvalues between Jordan-Wigner and Bravyi-Kitaev mappings.
 
+Uses the Be-H molecule example from analysis/examples/.
+
 Demonstrates that JW and BK are isomorphic: identical eigenspectra.
 
 Usage:
@@ -13,32 +15,32 @@ from scipy.sparse.linalg import eigsh
 from openfermion import InteractionOperator, jordan_wigner, bravyi_kitaev
 
 
-def create_hubbard_hamiltonian(n_sites=3, t=1.0, U=4.0):
+def load_beh_hamiltonian(filename):
     """
-    Create an n-site Hubbard model Hamiltonian.
+    Load Be-H molecule Hamiltonian from NumPy .npz file.
     
-    H = -t Σ_{<i,j>,σ} (c†_{iσ} c_{jσ} + h.c.) + U Σ_i n_{i↑} n_{i↓}
+    File format (from hamiltonian_generator):
+        - constant: scalar constant term (optional)
+        - one_body: one-body tensor
+        - two_body: two-body tensor
+    
+    Returns:
+        InteractionOperator
     """
-    n_qubits = 2 * n_sites  # 2 spin orbitals per site
+    print(f'Loading Hamiltonian from "{filename}"...')
+    data = np.load(filename)
     
-    # One-body: nearest-neighbor hopping (linear chain)
-    one_body = np.zeros((n_qubits, n_qubits))
-    for i in range(n_sites - 1):
-        # Spin up hopping
-        one_body[2*i, 2*(i+1)] = -t
-        one_body[2*(i+1), 2*i] = -t
-        # Spin down hopping
-        one_body[2*i+1, 2*(i+1)+1] = -t
-        one_body[2*(i+1)+1, 2*i+1] = -t
+    # Extract tensors
+    constant = data.get("constant", np.array(0.0))[()]  # Extract scalar from 0D array
+    one_body = data["one_body"]
+    two_body = data["two_body"]
     
-    # Two-body: on-site repulsion
-    two_body = np.zeros((n_qubits, n_qubits, n_qubits, n_qubits))
-    for site in range(n_sites):
-        up = 2 * site
-        down = 2 * site + 1
-        two_body[up, down, down, up] = U
+    print(f"  Constant term  : {constant}")
+    print(f"  One-body shape : {one_body.shape}")
+    print(f"  Two-body shape : {two_body.shape}")
+    print(f"  Number of spin orbitals : {one_body.shape[0]}")
     
-    return InteractionOperator(0.0, one_body, two_body)
+    return InteractionOperator(constant, one_body, two_body)
 
 
 def pauli_to_sparse_matrix(qubit_op):
@@ -90,20 +92,34 @@ def main():
     print("=" * 70)
     print()
     
-    # Parameters
-    n_sites = 3
-    t = 1.0
-    U = 4.0
-    k = 5
+    # Load Be-H molecule
+    filename = "analysis/examples/Be-H_1.30_sto-6g_as-003-003.tensors.npz"
     
-    print(f"System: {n_sites}-site Hubbard model")
-    print(f"  Parameters: t={t}, U={U}")
-    print(f"  Qubits: {2*n_sites} (2 spin orbitals per site)")
+    try:
+        fermion_ham = load_beh_hamiltonian(filename)
+    except FileNotFoundError:
+        print(f'ERROR: Could not find "{filename}"')
+        print("Make sure you're running from the qhat root directory.")
+        print()
+        print("Expected file structure:")
+        print("  qhat/")
+        print("  ├── compare_eigenvalues_jw_bk.py  ← This script")
+        print("  └── analysis/")
+        print("      └── examples/")
+        print("          └── Be-H_1.30_sto-6g_as-003-003.tensors.npz")
+        return
+    
+    n_qubits = fermion_ham.n_qubits
+    k = min(5, 2**n_qubits)  # Don't request more eigenvalues than dimension
+    
     print()
-    
-    # Create Hamiltonian
-    print("Creating fermionic Hamiltonian...")
-    fermion_ham = create_hubbard_hamiltonian(n_sites, t, U)
+    print(f"System: Be-H molecule (Beryllium Hydride)")
+    print(f"  Basis set: STO-6G")
+    print(f"  Bond length: 1.30 Angstrom")
+    print(f"  Active space: 3 occupied + 3 vacant spin orbitals")
+    print(f"  Number of qubits: {n_qubits}")
+    print(f"  Hilbert space dimension: {2**n_qubits}")
+    print()
     
     # Map to qubits
     print("Applying Jordan-Wigner transformation...")
@@ -143,6 +159,12 @@ def main():
     if max_diff < 1e-10:
         print("✅ SUCCESS: Eigenvalues match!")
         print("   JW and BK are isomorphic transformations.")
+        print()
+        print("PHYSICAL INTERPRETATION:")
+        print(f"  Ground state energy: {jw_eigenvalues[0]:.10f} Hartree")
+        print(f"  First excitation:    {jw_eigenvalues[1] - jw_eigenvalues[0]:.10f} Hartree")
+        if k >= 3:
+            print(f"  Second excitation:   {jw_eigenvalues[2] - jw_eigenvalues[0]:.10f} Hartree")
     else:
         print("❌ WARNING: Eigenvalues differ.")
     
