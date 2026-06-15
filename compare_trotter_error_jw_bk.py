@@ -12,8 +12,15 @@ Usage:
 """
 
 import sys
+import logging
 import numpy as np
 from openfermion import InteractionOperator, jordan_wigner, bravyi_kitaev, QubitOperator
+
+import logging
+from qhat.common.logging_utils import add_verbose_level, VERBOSE
+
+add_verbose_level()
+logging.basicConfig(level=VERBOSE, format='%(levelname)-7s | %(message)s')
 
 # Add analysis to path
 sys.path.insert(0, 'analysis')
