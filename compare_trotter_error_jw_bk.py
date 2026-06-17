@@ -2,7 +2,7 @@
 """
 Compare Trotter errors between Jordan-Wigner and Bravyi-Kitaev mappings.
 
-Uses the Be-H molecule example from analysis/examples/.
+Uses the Diatomic Lithium (Li₂) molecule example from analysis/examples/.
 
 Although JW and BK have identical eigenspectra (isomorphic), they produce different
 Pauli decompositions → different Trotter error coefficients.
@@ -27,9 +27,9 @@ sys.path.insert(0, 'analysis')
 from trotter_coefficients_fast import trotter_error_estimator_fast
 
 
-def load_beh_hamiltonian(filename):
+def load_hamiltonian(filename):
     """
-    Load Be-H molecule Hamiltonian from NumPy .npz file.
+    Load Diatomic Lithium molecule Hamiltonian from NumPy .npz file.
     
     File format (from hamiltonian_generator):
         - constant: scalar constant term (optional)
@@ -70,11 +70,11 @@ def main():
     print("=" * 70)
     print()
     
-    # Load Be-H molecule
-    filename = "analysis/examples/Be-H_1.30_sto-6g_as-003-003.tensors.npz"
+    # Load Diatomic Lithium molecule
+    filename = "hamiltonian_generator/diatomic_lithium_as-004-006.tensors.npz"
     
     try:
-        fermion_ham = load_beh_hamiltonian(filename)
+        fermion_ham = load_hamiltonian(filename)
     except FileNotFoundError:
         print(f'ERROR: Could not find "{filename}"')
         print("Make sure you're running from the qhat root directory.")
@@ -84,16 +84,16 @@ def main():
         print("  ├── compare_trotter_error_jw_bk.py  ← This script")
         print("  └── analysis/")
         print("      └── examples/")
-        print("          └── Be-H_1.30_sto-6g_as-003-003.tensors.npz")
+        print("          └── diatomic_lithium_2.00_sto-3g_as-004-006.tensors.npz")
         return
     
     n_qubits = fermion_ham.n_qubits
     
     print()
-    print(f"System: Be-H molecule (Beryllium Hydride)")
-    print(f"  Basis set: STO-6G")
-    print(f"  Bond length: 1.30 Angstrom")
-    print(f"  Active space: 3 occupied + 3 vacant spin orbitals")
+    print(f"System: Diatomic Lithium (Li₂)")
+    print(f"  Basis set: STO-3G")
+    print(f"  Bond length: 2.00 Angstrom")
+    print(f"  Active space: 4 occupied + 6 vacant spin orbitals")
     print(f"  Number of qubits: {n_qubits}")
     print(f"  Hilbert space dimension: {2**n_qubits}")
     print()
