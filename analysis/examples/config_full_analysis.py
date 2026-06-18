@@ -46,7 +46,11 @@ unitary.encode_ramped_trotter(
     energy_error=0.5 * energy_error,  # Split error budget between Trotter and phase estimation
     trotter_implementation="flattened",  # Options: "flattened", "recursive"
     trotter_combine_terms=True,  # Combine commuting terms for efficiency
-    ordering_method="lexicographical"  # Options: "lexicographical", "random", None
+    # Options include "lexicographical", "magnitude_descending",
+    # "pauli_weight_ascending", "diagonal_first", "commuting_blocks",
+    # "random_seeded", None
+    ordering_method="lexicographical",
+    ordering_seed=None  # Required for "random_seeded"
 )
 
 # Alternative: Double factorization encoding (for molecular Hamiltonians)

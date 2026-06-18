@@ -152,7 +152,10 @@ def encode_ramped_trotter(
     logger.info(f"-- using {method} Trotter formula with {Nsteps} steps ({Nsteps0})")
 
     pauli_strings = hamiltonian.get_all_pauli_strings(return_as='strings')
-    pauli_strings = reorder_paulis(pauli_strings, config_unitary.ordering_method)
+    pauli_strings = reorder_paulis(
+            pauli_strings,
+            config_unitary.ordering_method,
+            seed=getattr(config_unitary, "ordering_seed", None))
 
     # Import the appropriate implementation
     if trotter_impl == 'flattened':

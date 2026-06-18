@@ -25,7 +25,9 @@ if my_method == "Trotter":
             error_scale = 1.0,
             trotter_implementation = "flattened",
             trotter_combine_terms = True,
-            ordering_method = "lexicographical"
+            ordering_method = "lexicographical",
+            # Use ordering_seed with ordering_method = "random_seeded".
+            ordering_seed = None
             )
 elif my_method == "double-factorization":
     unitary.encode_double_factorization(energy_error=1.0e-4)
@@ -49,4 +51,3 @@ else:
 # analysis
 
 analysis.resource_estimator = "pyLIQTR"
-

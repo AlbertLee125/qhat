@@ -123,6 +123,7 @@ class UnitaryConfiguration(ConfigurationBase):
         self.trotter_implementation = kwargs.get("trotter_implementation", "flattened")
         self.trotter_combine_terms = kwargs.get("trotter_combine_terms", True)
         self.ordering_method = kwargs.get("ordering_method", None)
+        self.ordering_seed = kwargs.get("ordering_seed", None)
     def encode_double_factorization(self, **kwargs):
         self._only_once()
         self.method = "double factorization"
@@ -136,6 +137,7 @@ class UnitaryConfiguration(ConfigurationBase):
         self.save_if_present(table, "trotter_implementation")
         self.save_if_present(table, "trotter_combine_terms")
         self.save_if_present(table, "ordering_method")
+        self.save_if_present(table, "ordering_seed")
         return table
 
 # -------------------------------------------------------------------------------------------------
@@ -293,4 +295,3 @@ class State:
         logger.info(f"Summary file saved to \"{filename}\".")
 
 # -------------------------------------------------------------------------------------------------
-
